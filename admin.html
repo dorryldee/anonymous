@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin - Anonymous Rotation Draw</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f5f1;
+    padding: 30px;
+    color: #1b5e20;
+    max-width: 700px;
+    margin: auto;
+  }
+  h1 {
+    color: #2e7d32;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  #reset-btn {
+    background-color: #d32f2f;
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    font-size: 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 30px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 4px 8px rgba(211,47,47,0.5);
+    transition: background-color 0.3s ease;
+  }
+  #reset-btn:hover {
+    background-color: #9a1c1c;
+  }
+  .log-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+  }
+  .log-card:hover {
+    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+  }
+  .log-title {
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    color: #2e7d32;
+  }
+  .log-detail {
+    margin-bottom: 8px;
+    font-size: 1rem;
+  }
+</style>
+</head>
+<body>
+
+<h1>Admin Panel - Draw Logs</h1>
+<button id="reset-btn">Reset All Draws</button>
+<div id="log-container"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    onSnapshot,
+    deleteDoc,
+    doc,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDbXn-rN-xnjMYuRMlcMt9sVCEhMsFE2eg",
+    authDomain: "anonymous-rotation-draw-eb9f1.firebaseapp.com",
+    projectId: "anonymous-rotation-draw-eb9f1",
+    storageBucket: "anonymous-rotation-draw-eb9f1.firebasestorage.app",
+    messagingSenderId: "458050330906",
+    appId: "1:458050330906:web:037a194835d337acdc8ca3"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const drawsRef = collection(db, "draws");
+
+  const logContainer = document.getElementById("log-container");
+  const resetBtn = document.getElementById("reset-btn");
+
+  function formatTimestamp(ts) {
+    if (!ts) return "No timestamp";
+    try {
+      return ts.toDate().toLocaleString();
+    } catch {
+      return String(ts);
+    }
+  }
+
+  // Google Maps API key - REPLACE with your actual key!
+  const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+
+  async function getLocationName(lat, lon) {
+    if (!lat || !lon) return "Unknown";
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_MAPS_API_KEY}`;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "OK" && data.results.length > 0) {
+        return data.results[0].formatted_address;
+      } else {
+        return "Unknown location";
+      }
+    } catch {
+      return "Unknown location";
+    }
+  }
+
+  async function renderLog(docSnap) {
+    const data = docSnap.data();
+    let locationName = "Unknown";
+    if (data.location) {
+      locationName = await getLocationName(data.location.lat, data.location.lon);
+    }
+    const card = document.createElement("div");
+    card.className = "log-card";
+    card.innerHTML = `
+      <div class="log-title">Draw ID: ${docSnap.id}</div>
+      <div class="log-detail"><strong>Number:</strong> ${data.number ?? "N/A"}</div>
+      <div class="log-detail"><strong>Time:</strong> ${formatTimestamp(data.timestamp)}</div>
+      <div class="log-detail"><strong>Device:</strong> ${data.device ?? "Unknown"}</div>
+      <div class="log-detail"><strong>Location:</strong> ${locationName}</div>
+    `;
+    return card;
+  }
+
+  onSnapshot(drawsRef, async (snapshot) => {
+    logContainer.innerHTML = "";
+    if (snapshot.empty) {
+      logContainer.textContent = "No draws found.";
+      return;
+    }
+    for (const docSnap of snapshot.docs) {
+      const card = await renderLog(docSnap);
+      logContainer.appendChild(card);
+    }
+  });
+
+  async function resetDraws() {
+    if (!confirm("Are you sure you want to delete ALL draws? This cannot be undone.")) return;
+    const snapshot = await getDocs(drawsRef);
+    const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, "draws", docSnap.id)));
+    await Promise.all(deletePromises);
+    alert("All draws have been reset.");
+  }
+
+  resetBtn.addEventListener("click", resetDraws);
+
+</script>
+
+</body>
+</html>
