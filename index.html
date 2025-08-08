@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anonymous Draw System</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #cad7cf;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      background-color: rgb(77, 42, 235);
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+    button:hover {
+      background-color: #624db5;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Anonymous Rotation Draw</h2>
+  <p>Click the button to draw your position. You can only draw once.</p>
+  <button id="drawBtn" onclick="drawNumber()">Draw My Number</button>
+  <div id="result"></div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      addDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbXn-rN-xnjMYuRMlcMt9sVCEhMsFE2eg",
+      authDomain: "anonymous-rotation-draw-eb9f1.firebaseapp.com",
+      projectId: "anonymous-rotation-draw-eb9f1",
+      storageBucket: "anonymous-rotation-draw-eb9f1.appspot.com",
+      messagingSenderId: "458050330906",
+      appId: "1:458050330906:web:037a194835d337acdc8ca3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const resultDiv = document.getElementById("result");
+    const button = document.getElementById("drawBtn");
+
+    // Check if already drawn
+    const storedNumber = localStorage.getItem("myDrawNumber");
+    if (storedNumber) {
+      resultDiv.innerText = `🎉 You already drew number: ${storedNumber}`;
+      button.disabled = true;
+    }
+
+    async function drawNumber() {
+      if (localStorage.getItem("myDrawNumber")) {
+        alert("You have already drawn a number.");
+        return;
+      }
+
+      // Fetch existing draws
+      const querySnapshot = await getDocs(collection(db, "draws"));
+      const drawnNumbers = querySnapshot.docs.map(doc => doc.data().number);
+
+      // Define possible numbers
+      const allNumbers = [1, 2, 3, 4, 5, 6, 7];
+      const availableNumbers = allNumbers.filter(n => !drawnNumbers.includes(n));
+
+      if (availableNumbers.length === 0) {
+        resultDiv.innerText = "❌ All numbers have been drawn.";
+        button.disabled = true;
+        return;
+      }
+
+      // Pick a random number
+      const index = Math.floor(Math.random() * availableNumbers.length);
+      const number = availableNumbers[index];
+
+      // Save to Firestore
+      await addDoc(collection(db, "draws"), {
+        number,
+        timestamp: serverTimestamp()
+      });
+
+      // Save to localStorage
+      localStorage.setItem("myDrawNumber", number);
+      resultDiv.innerText = `🎉 Your number is: ${number}`;
+      button.disabled = true;
+    }
+  </script>
+</body>
+</html>
