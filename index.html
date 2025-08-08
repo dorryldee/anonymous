@@ -1,112 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Anonymous Draw System</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #cad7cf;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      flex-direction: column;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      background-color: rgb(77, 42, 235);
-      color: white;
-      border: none;
-      border-radius: 6px;
-    }
-    button:hover {
-      background-color: #624db5;
-    }
-    #result {
-      margin-top: 20px;
-      font-size: 1.5rem;
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Anonymous Rotation Draw</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f4f6f8;
+            padding: 50px;
+        }
+        h1 {
+            color: #333;
+        }
+        #drawBtn {
+            padding: 12px 25px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        #drawBtn:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #444;
+        }
+        #history {
+            margin-top: 30px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #history h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        #history ul {
+            list-style: none;
+            padding: 0;
+        }
+        #history li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
 </head>
 <body>
-  <h2>Anonymous Rotation Draw</h2>
-  <p>Click the button to draw your position. You can only draw once.</p>
-  <button id="drawBtn" onclick="drawNumber()">Draw My Number</button>
-  <div id="result"></div>
+    <h1>Anonymous Rotation Draw</h1>
+    <button id="drawBtn">Draw Number</button>
+    <div id="result"></div>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      getDocs,
-      addDoc,
-      serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    <div id="history">
+        <h2>Previous Draws</h2>
+        <ul id="drawList"></ul>
+    </div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDbXn-rN-xnjMYuRMlcMt9sVCEhMsFE2eg",
-      authDomain: "anonymous-rotation-draw-eb9f1.firebaseapp.com",
-      projectId: "anonymous-rotation-draw-eb9f1",
-      storageBucket: "anonymous-rotation-draw-eb9f1.appspot.com",
-      messagingSenderId: "458050330906",
-      appId: "1:458050330906:web:037a194835d337acdc8ca3"
-    };
+    <script>
+        // Simulated "database"
+        let draws = [];
+        let availableNumbers = [1, 2, 3, 4, 5, 6, 7];
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        const drawBtn = document.getElementById("drawBtn");
+        const resultDiv = document.getElementById("result");
+        const drawList = document.getElementById("drawList");
 
-    const resultDiv = document.getElementById("result");
-    const button = document.getElementById("drawBtn");
+        drawBtn.addEventListener("click", () => {
+            if (availableNumbers.length === 0) {
+                resultDiv.textContent = "All numbers have been drawn!";
+                drawBtn.disabled = true;
+                return;
+            }
 
-    // Check if already drawn
-    const storedNumber = localStorage.getItem("myDrawNumber");
-    if (storedNumber) {
-      resultDiv.innerText = `🎉 You already drew number: ${storedNumber}`;
-      button.disabled = true;
-    }
+            // Randomly pick a number
+            const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+            const drawnNumber = availableNumbers[randomIndex];
 
-    async function drawNumber() {
-      if (localStorage.getItem("myDrawNumber")) {
-        alert("You have already drawn a number.");
-        return;
-      }
+            // Remove from available numbers
+            availableNumbers.splice(randomIndex, 1);
 
-      // Fetch existing draws
-      const querySnapshot = await getDocs(collection(db, "draws"));
-      const drawnNumbers = querySnapshot.docs.map(doc => doc.data().number);
+            // Create draw record
+            const drawRecord = {
+                number: drawnNumber,
+                timestamp: new Date().toISOString()
+            };
 
-      // Define possible numbers
-      const allNumbers = [1, 2, 3, 4, 5, 6, 7];
-      const availableNumbers = allNumbers.filter(n => !drawnNumbers.includes(n));
+            // Save to "database"
+            draws.push(drawRecord);
 
-      if (availableNumbers.length === 0) {
-        resultDiv.innerText = "❌ All numbers have been drawn.";
-        button.disabled = true;
-        return;
-      }
+            // Show result
+            resultDiv.textContent = `You drew: ${drawnNumber}`;
 
-      // Pick a random number
-      const index = Math.floor(Math.random() * availableNumbers.length);
-      const number = availableNumbers[index];
+            // Update history
+            updateHistory();
+        });
 
-      // Save to Firestore
-      await addDoc(collection(db, "draws"), {
-        number,
-        timestamp: serverTimestamp()
-      });
-
-      // Save to localStorage
-      localStorage.setItem("myDrawNumber", number);
-      resultDiv.innerText = `🎉 Your number is: ${number}`;
-      button.disabled = true;
-    }
-  </script>
+        function updateHistory() {
+            drawList.innerHTML = "";
+            draws.forEach(d => {
+                const li = document.createElement("li");
+                li.textContent = `Number: ${d.number} | Time: ${d.timestamp}`;
+                drawList.appendChild(li);
+            });
+        }
+    </script>
 </body>
 </html>
